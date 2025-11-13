@@ -8,7 +8,7 @@ class AxisAthleteApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AxisAthlete - 3D Printer Motion System Exercise Generator")
-        self.root.geometry("700x950")
+        self.root.geometry("750x1050")
         self.root.resizable(False, False)
         
         # Configure style
@@ -31,9 +31,29 @@ class AxisAthleteApp:
                                   font=("Arial", 10, "italic"))
         subtitle_label.pack()
         
+        # --- FIRMWARE SELECTION SECTION ---
+        firmware_frame = ttk.LabelFrame(main_frame, text="🖥️ FIRMWARE SELECTION", padding="10")
+        firmware_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        
+        ttk.Label(firmware_frame, text="Select your printer's firmware:",
+                 font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=5)
+        
+        self.firmware_var = tk.StringVar(value="")
+        
+        firmware_options = ["Marlin 1.x", "Marlin 2.x", "Klipper"]
+        
+        for i, firmware in enumerate(firmware_options):
+            ttk.Radiobutton(firmware_frame, text=firmware, variable=self.firmware_var, 
+                           value=firmware, command=self.on_firmware_changed).grid(row=1, column=i, sticky=tk.W, padx=10, pady=5)
+        
+        # Firmware info label
+        self.firmware_info = ttk.Label(firmware_frame, text="ℹ️ Select a firmware to generate compatible G-Code",
+                                      font=("Arial", 8, "italic"), foreground="darkblue")
+        self.firmware_info.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
         # --- SAFETY CHECK SECTION ---
         safety_frame = ttk.LabelFrame(main_frame, text="⚠️ SAFETY CHECK - FILAMENT STATUS", padding="10")
-        safety_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        safety_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         safety_label = ttk.Label(safety_frame, 
                                 text="Is filament currently installed in your 3D printer?",
@@ -69,7 +89,7 @@ class AxisAthleteApp:
         
         # --- INPUT SECTION ---
         input_frame = ttk.LabelFrame(main_frame, text="📊 Input Parameters", padding="10")
-        input_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        input_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Print Length
         ttk.Label(input_frame, text="Printable area (X-axis) in (mm):").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -120,7 +140,7 @@ class AxisAthleteApp:
         
         # --- CALCULATIONS SECTION ---
         calc_frame = ttk.LabelFrame(main_frame, text="📈 Calculated Values", padding="10")
-        calc_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        calc_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Total Distance
         ttk.Label(calc_frame, text="Total Distance:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -139,7 +159,7 @@ class AxisAthleteApp:
         
         # --- BUTTON SECTION ---
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
+        button_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
         
         self.generate_btn = ttk.Button(button_frame, text="🚀 Generate Exercise", 
                                        command=self.generate_gcode, state=tk.DISABLED)
@@ -150,7 +170,7 @@ class AxisAthleteApp:
         
         # --- PREVIEW SECTION ---
         preview_frame = ttk.LabelFrame(main_frame, text="📝 G-Code Preview", padding="10")
-        preview_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        preview_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         
         # Scrollbar for preview
         scrollbar = ttk.Scrollbar(preview_frame)
@@ -173,6 +193,18 @@ class AxisAthleteApp:
         # Initial calculation
         self.update_calculations()
     
+    def on_firmware_changed(self):
+        """Handle firmware selection change"""
+        firmware = self.firmware_var.get()
+        
+        firmware_info_map = {
+            "Marlin 1.x": "✅ Marlin 1.x selected - Classic firmware syntax",
+            "Marlin 2.x": "✅ Marlin 2.x selected - Modern firmware with advanced features",
+            "Klipper": "✅ Klipper selected - High-performance firmware system"
+        }
+        
+        self.firmware_info.config(text=firmware_info_map.get(firmware, ""))
+    
     def check_filament_status(self):
         """Check user input for filament status - must type yes or no"""
         user_input = self.filament_var.get().strip().lower()
@@ -193,7 +225,7 @@ class AxisAthleteApp:
                 text="🔒 Disabled (awaiting safety confirmation)", 
                 foreground="red"
             )
-            self.generate_btn.config(state=tk.DISABLED)
+            self.update_generate_btn_state()
     
     def filament_yes(self):
         """User confirms filament is installed"""
@@ -208,9 +240,6 @@ class AxisAthleteApp:
             foreground="red"
         )
         
-        # Enable generate button but change color to RED
-        self.generate_btn.config(state=tk.NORMAL)
-        
         # Update status
         self.status_label.config(
             text="⚠️ Status: Filament detected. Feed rate DISABLED for protection.\n"
@@ -218,6 +247,7 @@ class AxisAthleteApp:
             foreground="red"
         )
         
+        self.update_generate_btn_state()
         self.update_calculations()
     
     def filament_no(self):
@@ -233,16 +263,21 @@ class AxisAthleteApp:
             foreground="green"
         )
         
-        # Enable generate button with normal style
-        self.generate_btn.config(state=tk.NORMAL)
-        
         # Update status
         self.status_label.config(
             text="✅ Status: Filament removed. Feed rate ENABLED. Safe to proceed.",
             foreground="green"
         )
         
+        self.update_generate_btn_state()
         self.update_calculations()
+    
+    def update_generate_btn_state(self):
+        """Update generate button state based on firmware and safety confirmation"""
+        if self.safety_confirmed and self.firmware_var.get():
+            self.generate_btn.config(state=tk.NORMAL)
+        else:
+            self.generate_btn.config(state=tk.DISABLED)
     
     def update_calculations(self):
         """Update calculations when parameters change"""
@@ -258,9 +293,6 @@ class AxisAthleteApp:
                 return
             
             # Calculate total distance (rectangular path per cycle + Z movements)
-            # X-axis: 2 passes (back and forth)
-            # Y-axis: 2 passes (back and forth)
-            # Z-axis: up and down movements
             distance_per_cycle = (2 * length) + (2 * width) + (2 * height)
             total_distance = distance_per_cycle * cycles
             
@@ -272,9 +304,9 @@ class AxisAthleteApp:
             minutes = int((time_seconds % 3600) // 60)
             seconds = int(time_seconds % 60)
             
-            # Calculate estimated lines (4 corners per cycle + header/footer)
-            lines_per_cycle = 5  # 4 corners + Z-hop
-            estimated_lines = (lines_per_cycle * cycles) + 15  # +15 for header/footer
+            # Calculate estimated lines
+            lines_per_cycle = 5
+            estimated_lines = (lines_per_cycle * cycles) + 15
             
             # Update labels
             self.distance_label.config(text=f"{total_distance:.2f} mm ({total_distance/1000:.2f} m)")
@@ -286,6 +318,12 @@ class AxisAthleteApp:
     
     def generate_gcode(self):
         """Generate G-Code based on user parameters"""
+        # Check firmware selection
+        if not self.firmware_var.get():
+            messagebox.showerror("Firmware Required", 
+                               "Please select a firmware before generating G-Code.")
+            return
+        
         # Check if safety confirmation is done
         if not self.safety_confirmed:
             messagebox.showerror("Safety Check Required", 
@@ -313,6 +351,7 @@ class AxisAthleteApp:
             cycles = self.cycles_var.get()
             feedrate = self.feedrate_var.get()
             zhop = self.zhop_var.get()
+            firmware = self.firmware_var.get()
             
             # Validate inputs
             if length <= 0 or width <= 0 or height <= 0 or cycles <= 0:
@@ -320,7 +359,8 @@ class AxisAthleteApp:
                 return
             
             # Generate G-Code
-            gcode = self.create_gcode(length, width, height, cycles, feedrate, zhop, self.filament_installed)
+            gcode = self.create_gcode(length, width, height, cycles, feedrate, zhop, 
+                                     self.filament_installed, firmware)
             
             # Display preview
             self.preview_text.delete(1.0, tk.END)
@@ -341,25 +381,38 @@ class AxisAthleteApp:
                 if self.filament_installed:
                     messagebox.showinfo("✅ Success", 
                                       f"Exercise G-Code generated with EXTRUDER PROTECTION!\n\n"
+                                      f"Firmware: {firmware}\n"
                                       f"File: {os.path.basename(file_path)}\n"
                                       f"Location: {os.path.dirname(file_path)}\n\n"
                                       f"⚠️ Extruder stepper is DISABLED in this file")
                 else:
                     messagebox.showinfo("✅ Success", 
                                       f"Exercise G-Code generated successfully!\n\n"
+                                      f"Firmware: {firmware}\n"
                                       f"File: {os.path.basename(file_path)}\n"
                                       f"Location: {os.path.dirname(file_path)}")
         
         except ValueError:
             messagebox.showerror("Input Error", "Please enter valid numbers for all fields")
     
-    def create_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed):
-        """Create G-Code string for motion system exercise"""
+    def create_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed, firmware):
+        """Create firmware-specific G-Code string"""
+        
+        if firmware == "Marlin 1.x":
+            return self.create_marlin1_gcode(length, width, height, cycles, feedrate, zhop, filament_installed)
+        elif firmware == "Marlin 2.x":
+            return self.create_marlin2_gcode(length, width, height, cycles, feedrate, zhop, filament_installed)
+        elif firmware == "Klipper":
+            return self.create_klipper_gcode(length, width, height, cycles, feedrate, zhop, filament_installed)
+    
+    def create_marlin1_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed):
+        """Create Marlin 1.x compatible G-Code"""
         gcode = []
         
         # Header
         gcode.append("; ========================================")
         gcode.append("; AxisAthlete - Motion System Exercise")
+        gcode.append("; Firmware: Marlin 1.x")
         gcode.append("; 3D Printer Firmware Testing & Calibration")
         gcode.append("; ========================================")
         gcode.append(f"; Build Dimensions: {length}mm (X) x {width}mm (Y) x {height}mm (Z)")
@@ -389,11 +442,10 @@ class AxisAthleteApp:
         gcode.append("; ========================================")
         gcode.append("")
         
-        # Initialize
+        # Initialize (Marlin 1.x style)
         gcode.append("G90 ; Absolute positioning")
-        gcode.append("G21 ; Metric units")
         gcode.append("G28 ; Home all axes")
-        gcode.append(f"F{feedrate} ; Set feed rate")
+        gcode.append(f"F{feedrate} ; Set feedrate")
         gcode.append("")
         
         # Disable extruder if filament is installed
@@ -403,10 +455,7 @@ class AxisAthleteApp:
             gcode.append("")
         
         # Starting position
-        start_x, start_y, start_z = 10.0, 10.0, 5.0
-        current_x, current_y, current_z = start_x, start_y, start_z
-        
-        gcode.append(f"G0 X{current_x} Y{current_y} Z{current_z} ; Move to start position")
+        gcode.append("G0 X10 Y10 Z5 ; Move to start position")
         gcode.append("")
         
         # Cycles
@@ -416,43 +465,224 @@ class AxisAthleteApp:
             
             # Z-Axis Exercise
             gcode.append("; Z-Axis Movement")
-            z_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
-            for z in z_positions:
+            for z in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
                 gcode.append(f"G0 Z{z}")
             
             # X-Axis Exercise
             gcode.append("; X-Axis Movement")
-            x_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
-            for x in x_positions:
+            for x in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
                 gcode.append(f"G0 X{x}")
             
             # Y-Axis Exercise
             gcode.append("; Y-Axis Movement")
-            y_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
-            for y in y_positions:
+            for y in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
                 gcode.append(f"G0 Y{y}")
             
-            # Diagonal Exercise (XY plane)
+            # Diagonal Exercise
             gcode.append("; Diagonal Movement (XY)")
             gcode.append("G0 X210 Y210")
             gcode.append("G0 X10 Y10")
             gcode.append("G0 X210 Y10")
             gcode.append("G0 X10 Y210")
-            gcode.append("G0 X10 Y10")
-            
-            # Return to start position
             gcode.append("G0 X10 Y10 Z10")
             gcode.append("")
         
         # Finalization
         gcode.append("; ========================================")
-        gcode.append("; Exercise Complete - Return to Home")
+        gcode.append("; Exercise Complete")
         gcode.append("; ========================================")
-        gcode.append("G0 Z20 ; Raise Z for safety")
-        gcode.append("G28 ; Return to home position")
-        gcode.append("M84 ; Disable stepper motors (motors relax)")
-        gcode.append("M117 AxisAthlete Exercise Complete!")
+        gcode.append("G0 Z20 ; Raise Z")
+        gcode.append("G28 ; Return home")
+        gcode.append("M84 ; Disable stepper motors")
+        gcode.append("M117 AxisAthlete Complete!")
+        gcode.append("; End")
+        
+        return '\n'.join(gcode)
+    
+    def create_marlin2_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed):
+        """Create Marlin 2.x compatible G-Code"""
+        gcode = []
+        
+        # Header
+        gcode.append("; ========================================")
+        gcode.append("; AxisAthlete - Motion System Exercise")
+        gcode.append("; Firmware: Marlin 2.x")
+        gcode.append("; 3D Printer Firmware Testing & Calibration")
+        gcode.append("; ========================================")
+        gcode.append(f"; Build Dimensions: {length}mm (X) x {width}mm (Y) x {height}mm (Z)")
+        gcode.append(f"; Exercise Cycles: {cycles}")
+        gcode.append(f"; Feed Rate: {feedrate} mm/min")
+        gcode.append(f"; Z-Hop Distance: {zhop} mm")
+        gcode.append("; ")
+        gcode.append("; Purpose: Extended motion testing for:")
+        gcode.append(";   - Stepper motor endurance")
+        gcode.append(";   - Mechanical stress testing")
+        gcode.append(";   - Firmware stability verification")
+        gcode.append(";   - Calibration & tuning")
+        gcode.append("; ")
+        
+        if filament_installed:
+            gcode.append("; ⚠️ FILAMENT PROTECTION MODE ENABLED ⚠️")
+            gcode.append(";   - Extruder stepper motor: DISABLED")
+            gcode.append(";   - Extruder will NOT move")
+            gcode.append(";   - No filament extrusion")
+            gcode.append(";   - XYZ axes exercise only")
+        else:
+            gcode.append("; ⚠️ SAFETY NOTES:")
+            gcode.append(";   - FILAMENT MUST BE REMOVED before running")
+            gcode.append(";   - Store filament in airtight container")
+            gcode.append(";   - Use desiccant to prevent moisture absorption")
+        
+        gcode.append("; ========================================")
         gcode.append("")
+        
+        # Initialize (Marlin 2.x with enhanced commands)
+        gcode.append("G90 ; Absolute positioning")
+        gcode.append("G28 ; Home all axes")
+        gcode.append(f"G0 F{feedrate} ; Set feedrate")
+        gcode.append("")
+        
+        # Disable extruder if filament is installed
+        if filament_installed:
+            gcode.append("; *** EXTRUDER STEPPER DISABLED FOR PROTECTION ***")
+            gcode.append("M18 E ; Disable extruder stepper motor")
+            gcode.append("")
+        
+        # Starting position with explicit feedrate
+        gcode.append(f"G0 X10 Y10 Z5 F{feedrate} ; Move to start position")
+        gcode.append("")
+        
+        # Cycles
+        for cycle in range(1, cycles + 1):
+            gcode.append(f"; --- Exercise Cycle {cycle} of {cycles} ---")
+            gcode.append(f"M117 CYCLE {cycle} OF {cycles}")
+            
+            # Z-Axis Exercise
+            gcode.append("; Z-Axis Movement")
+            for z in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 Z{z}")
+            
+            # X-Axis Exercise
+            gcode.append("; X-Axis Movement")
+            for x in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 X{x}")
+            
+            # Y-Axis Exercise
+            gcode.append("; Y-Axis Movement")
+            for y in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 Y{y}")
+            
+            # Diagonal Exercise
+            gcode.append("; Diagonal Movement (XY)")
+            gcode.append("G0 X210 Y210")
+            gcode.append("G0 X10 Y10")
+            gcode.append("G0 X210 Y10")
+            gcode.append("G0 X10 Y210")
+            gcode.append(f"G0 X10 Y10 Z10 F{feedrate}")
+            gcode.append("")
+        
+        # Finalization
+        gcode.append("; ========================================")
+        gcode.append("; Exercise Complete")
+        gcode.append("; ========================================")
+        gcode.append(f"G0 Z20 F{feedrate} ; Raise Z")
+        gcode.append("G28 ; Return home")
+        gcode.append("M84 ; Disable stepper motors")
+        gcode.append("M117 AxisAthlete Complete!")
+        gcode.append("; End of G-Code")
+        
+        return '\n'.join(gcode)
+    
+    def create_klipper_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed):
+        """Create Klipper compatible G-Code"""
+        gcode = []
+        
+        # Header for Klipper
+        gcode.append("; ========================================")
+        gcode.append("; AxisAthlete - Motion System Exercise")
+        gcode.append("; Firmware: Klipper")
+        gcode.append("; 3D Printer Firmware Testing & Calibration")
+        gcode.append("; ========================================")
+        gcode.append(f"; Build Dimensions: {length}mm (X) x {width}mm (Y) x {height}mm (Z)")
+        gcode.append(f"; Exercise Cycles: {cycles}")
+        gcode.append(f"; Feed Rate: {feedrate} mm/min")
+        gcode.append(f"; Z-Hop Distance: {zhop} mm")
+        gcode.append("; ")
+        gcode.append("; Purpose: Extended motion testing for:")
+        gcode.append(";   - Stepper motor endurance")
+        gcode.append(";   - Mechanical stress testing")
+        gcode.append(";   - Firmware stability verification")
+        gcode.append(";   - Calibration & tuning")
+        gcode.append("; ")
+        
+        if filament_installed:
+            gcode.append("; ⚠️ FILAMENT PROTECTION MODE ENABLED ⚠️")
+            gcode.append(";   - Extruder stepper motor: DISABLED")
+            gcode.append(";   - Extruder will NOT move")
+            gcode.append(";   - No filament extrusion")
+            gcode.append(";   - XYZ axes exercise only")
+        else:
+            gcode.append("; ⚠️ SAFETY NOTES:")
+            gcode.append(";   - FILAMENT MUST BE REMOVED before running")
+            gcode.append(";   - Store filament in airtight container")
+            gcode.append(";   - Use desiccant to prevent moisture absorption")
+        
+        gcode.append("; ========================================")
+        gcode.append("")
+        
+        # Klipper-specific initialization
+        gcode.append("G90 ; Absolute positioning")
+        gcode.append("G28 ; Home all axes")
+        gcode.append(f"G0 F{feedrate * 60} ; Set feedrate (Klipper uses mm/s)")
+        gcode.append("")
+        
+        # Disable extruder if filament is installed (Klipper style)
+        if filament_installed:
+            gcode.append("; *** EXTRUDER STEPPER DISABLED FOR PROTECTION ***")
+            gcode.append("SET_STEPPER_ENABLE STEPPER=extruder ENABLE=0 ; Disable extruder")
+            gcode.append("")
+        
+        # Starting position
+        gcode.append(f"G0 X10 Y10 Z5 F{feedrate * 60} ; Move to start position (mm/s)")
+        gcode.append("")
+        
+        # Cycles
+        for cycle in range(1, cycles + 1):
+            gcode.append(f"; --- Exercise Cycle {cycle} of {cycles} ---")
+            gcode.append(f"M117 CYCLE {cycle} OF {cycles}")
+            
+            # Z-Axis Exercise
+            gcode.append("; Z-Axis Movement")
+            for z in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 Z{z}")
+            
+            # X-Axis Exercise
+            gcode.append("; X-Axis Movement")
+            for x in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 X{x}")
+            
+            # Y-Axis Exercise
+            gcode.append("; Y-Axis Movement")
+            for y in [10, 55, 110, 165, 210, 165, 110, 55, 10]:
+                gcode.append(f"G0 Y{y}")
+            
+            # Diagonal Exercise
+            gcode.append("; Diagonal Movement (XY)")
+            gcode.append("G0 X210 Y210")
+            gcode.append("G0 X10 Y10")
+            gcode.append("G0 X210 Y10")
+            gcode.append("G0 X10 Y210")
+            gcode.append(f"G0 X10 Y10 Z10 F{feedrate * 60}")
+            gcode.append("")
+        
+        # Finalization
+        gcode.append("; ========================================")
+        gcode.append("; Exercise Complete")
+        gcode.append("; ========================================")
+        gcode.append(f"G0 Z20 F{feedrate * 60} ; Raise Z")
+        gcode.append("G28 ; Return home")
+        gcode.append("M84 ; Disable stepper motors")
+        gcode.append("M117 AxisAthlete Complete!")
         gcode.append("; End of G-Code")
         
         return '\n'.join(gcode)
@@ -466,6 +696,7 @@ class AxisAthleteApp:
         self.feedrate_var.set(100.0)
         self.zhop_var.set(2.0)
         self.filament_var.set("")
+        self.firmware_var.set("")
         self.preview_text.delete(1.0, tk.END)
         
         # Reset safety confirmation
@@ -474,6 +705,7 @@ class AxisAthleteApp:
         self.status_label.config(text="Status: Awaiting confirmation...", foreground="orange")
         self.feedrate_entry.config(state=tk.DISABLED)
         self.feedrate_status.config(text="🔒 Disabled (awaiting safety confirmation)", foreground="red")
+        self.firmware_info.config(text="ℹ️ Select a firmware to generate compatible G-Code")
         self.generate_btn.config(state=tk.DISABLED)
         
         self.update_calculations()
