@@ -204,12 +204,12 @@ class AxisAthleteApp:
         self.feedrate_entry.config(state=tk.DISABLED)
         self.feedrate_var.set(0.0)
         self.feedrate_status.config(
-            text="🔒 DISABLED - Filament detected! Remove filament before running.",
+            text="🔒 DISABLED - Filament detected! Extruder stepper disabled.",
             foreground="red"
         )
         
-        # Keep generate button disabled (with filament)
-        self.generate_btn.config(state=tk.DISABLED)
+        # Enable generate button but change color to RED
+        self.generate_btn.config(state=tk.NORMAL)
         
         # Update status
         self.status_label.config(
@@ -233,7 +233,7 @@ class AxisAthleteApp:
             foreground="green"
         )
         
-        # Enable generate button
+        # Enable generate button with normal style
         self.generate_btn.config(state=tk.NORMAL)
         
         # Update status
@@ -293,19 +293,18 @@ class AxisAthleteApp:
                                "Type 'yes' or 'no' in the filament status field.")
             return
         
-        # If filament installed, prevent generation
+        # If filament installed, show warning popup before generating
         if self.filament_installed:
-            messagebox.showerror(
-                "⚠️ FILAMENT DETECTED - GENERATION BLOCKED",
-                "Filament is installed in your printer!\n\n"
-                "Running this exercise with filament will:\n"
-                "  • Damage the nozzle and hotend\n"
-                "  • Extrude unwanted material\n"
-                "  • Potentially break your printer\n\n"
-                "❌ Generation DISABLED for protection.\n\n"
-                "Please remove filament and change your answer to 'no'."
+            messagebox.showwarning(
+                "⚠️ FILAMENT CONFIRMED - SAFETY PROTECTION ENABLED",
+                "Your filament is confirmed to be installed in your printer.\n\n"
+                "To protect your printer, the printer's extruder stepper has been disabled.\n\n"
+                "The exercise G-Code will be generated with extruder protection:\n"
+                "  • Extruder stepper motor: DISABLED\n"
+                "  • No filament will be extruded\n"
+                "  • Only XYZ motion axes will exercise\n\n"
+                "Your printer is protected from damage."
             )
-            return
         
         try:
             length = self.length_var.get()
@@ -316,12 +315,12 @@ class AxisAthleteApp:
             zhop = self.zhop_var.get()
             
             # Validate inputs
-            if length <= 0 or width <= 0 or height <= 0 or cycles <= 0 or feedrate <= 0:
+            if length <= 0 or width <= 0 or height <= 0 or cycles <= 0:
                 messagebox.showerror("Input Error", "All dimension and cycle values must be positive numbers")
                 return
             
             # Generate G-Code
-            gcode = self.create_gcode(length, width, height, cycles, feedrate, zhop)
+            gcode = self.create_gcode(length, width, height, cycles, feedrate, zhop, self.filament_installed)
             
             # Display preview
             self.preview_text.delete(1.0, tk.END)
@@ -339,15 +338,22 @@ class AxisAthleteApp:
                 with open(file_path, 'w') as f:
                     f.write(gcode)
                 
-                messagebox.showinfo("✅ Success", 
-                                  f"Exercise G-Code generated successfully!\n\n"
-                                  f"File: {os.path.basename(file_path)}\n"
-                                  f"Location: {os.path.dirname(file_path)}")
+                if self.filament_installed:
+                    messagebox.showinfo("✅ Success", 
+                                      f"Exercise G-Code generated with EXTRUDER PROTECTION!\n\n"
+                                      f"File: {os.path.basename(file_path)}\n"
+                                      f"Location: {os.path.dirname(file_path)}\n\n"
+                                      f"⚠️ Extruder stepper is DISABLED in this file")
+                else:
+                    messagebox.showinfo("✅ Success", 
+                                      f"Exercise G-Code generated successfully!\n\n"
+                                      f"File: {os.path.basename(file_path)}\n"
+                                      f"Location: {os.path.dirname(file_path)}")
         
         except ValueError:
             messagebox.showerror("Input Error", "Please enter valid numbers for all fields")
     
-    def create_gcode(self, length, width, height, cycles, feedrate, zhop):
+    def create_gcode(self, length, width, height, cycles, feedrate, zhop, filament_installed):
         """Create G-Code string for motion system exercise"""
         gcode = []
         
@@ -367,10 +373,19 @@ class AxisAthleteApp:
         gcode.append(";   - Firmware stability verification")
         gcode.append(";   - Calibration & tuning")
         gcode.append("; ")
-        gcode.append("; ⚠️ SAFETY NOTES:")
-        gcode.append(";   - FILAMENT MUST BE REMOVED before running")
-        gcode.append(";   - Store filament in airtight container")
-        gcode.append(";   - Use desiccant to prevent moisture absorption")
+        
+        if filament_installed:
+            gcode.append("; ⚠️ FILAMENT PROTECTION MODE ENABLED ⚠️")
+            gcode.append(";   - Extruder stepper motor: DISABLED")
+            gcode.append(";   - Extruder will NOT move")
+            gcode.append(";   - No filament extrusion")
+            gcode.append(";   - XYZ axes exercise only")
+        else:
+            gcode.append("; ⚠️ SAFETY NOTES:")
+            gcode.append(";   - FILAMENT MUST BE REMOVED before running")
+            gcode.append(";   - Store filament in airtight container")
+            gcode.append(";   - Use desiccant to prevent moisture absorption")
+        
         gcode.append("; ========================================")
         gcode.append("")
         
@@ -380,6 +395,12 @@ class AxisAthleteApp:
         gcode.append("G28 ; Home all axes")
         gcode.append(f"F{feedrate} ; Set feed rate")
         gcode.append("")
+        
+        # Disable extruder if filament is installed
+        if filament_installed:
+            gcode.append("; *** EXTRUDER STEPPER DISABLED FOR PROTECTION ***")
+            gcode.append("M18 E ; Disable extruder stepper motor")
+            gcode.append("")
         
         # Starting position
         start_x, start_y, start_z = 10.0, 10.0, 5.0
