@@ -8,7 +8,7 @@ class AxisAthleteApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AxisAthlete - 3D Printer Motion System Exercise Generator")
-        self.root.geometry("700x850")
+        self.root.geometry("700x950")
         self.root.resizable(False, False)
         
         # Configure style
@@ -31,9 +31,45 @@ class AxisAthleteApp:
                                   font=("Arial", 10, "italic"))
         subtitle_label.pack()
         
+        # --- SAFETY CHECK SECTION ---
+        safety_frame = ttk.LabelFrame(main_frame, text="⚠️ SAFETY CHECK - FILAMENT STATUS", padding="10")
+        safety_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        
+        safety_label = ttk.Label(safety_frame, 
+                                text="Is filament currently installed in your 3D printer?",
+                                font=("Arial", 10, "bold"))
+        safety_label.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=5)
+        
+        # Instructions
+        instructions_label = ttk.Label(safety_frame,
+                                      text="Type 'yes' or 'no' in the field below:",
+                                      font=("Arial", 9, "italic"), foreground="darkblue")
+        instructions_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=5)
+        
+        # Filament status variable
+        self.filament_var = tk.StringVar(value="")
+        
+        # Entry field for yes/no
+        ttk.Label(safety_frame, text="Filament Status:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.filament_entry = ttk.Entry(safety_frame, textvariable=self.filament_var, width=15)
+        self.filament_entry.grid(row=2, column=1, sticky=tk.W, padx=5)
+        self.filament_entry.bind('<KeyRelease>', lambda e: self.check_filament_status())
+        
+        # Status display
+        self.status_label = ttk.Label(safety_frame, text="Status: Awaiting confirmation...", 
+                                     font=("Arial", 9, "italic"), foreground="orange")
+        self.status_label.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=10)
+        
+        # Info box
+        info_text = ttk.Label(safety_frame, 
+                             text="ℹ️ For optimal results, remove filament before exercise.\n"
+                                  "Store filament in an airtight container to prevent moisture absorption.",
+                             font=("Arial", 8), justify=tk.LEFT, foreground="darkblue")
+        info_text.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=5)
+        
         # --- INPUT SECTION ---
         input_frame = ttk.LabelFrame(main_frame, text="📊 Input Parameters", padding="10")
-        input_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        input_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Print Length
         ttk.Label(input_frame, text="Printable area (X-axis) in (mm):").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -66,9 +102,14 @@ class AxisAthleteApp:
         # Feed Rate
         ttk.Label(input_frame, text="Feed Rate (mm/min):").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.feedrate_var = tk.DoubleVar(value=100.0)
-        self.feedrate_entry = ttk.Entry(input_frame, textvariable=self.feedrate_var, width=15)
+        self.feedrate_entry = ttk.Entry(input_frame, textvariable=self.feedrate_var, width=15, state=tk.DISABLED)
         self.feedrate_entry.grid(row=4, column=1, sticky=tk.W, padx=5)
         self.feedrate_entry.bind('<KeyRelease>', lambda e: self.update_calculations())
+        
+        # Feed Rate Status Label
+        self.feedrate_status = ttk.Label(input_frame, text="🔒 Disabled (awaiting safety confirmation)", 
+                                        font=("Arial", 8, "italic"), foreground="red")
+        self.feedrate_status.grid(row=4, column=2, sticky=tk.W, padx=5)
         
         # Z Hop Distance
         ttk.Label(input_frame, text="Z Hop Distance (mm):").grid(row=5, column=0, sticky=tk.W, pady=5)
@@ -79,7 +120,7 @@ class AxisAthleteApp:
         
         # --- CALCULATIONS SECTION ---
         calc_frame = ttk.LabelFrame(main_frame, text="📈 Calculated Values", padding="10")
-        calc_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        calc_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Total Distance
         ttk.Label(calc_frame, text="Total Distance:").grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -98,23 +139,24 @@ class AxisAthleteApp:
         
         # --- BUTTON SECTION ---
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
+        button_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
         
-        generate_btn = ttk.Button(button_frame, text="🚀 Generate Exercise", command=self.generate_gcode)
-        generate_btn.pack(side=tk.LEFT, padx=5)
+        self.generate_btn = ttk.Button(button_frame, text="🚀 Generate Exercise", 
+                                       command=self.generate_gcode, state=tk.DISABLED)
+        self.generate_btn.pack(side=tk.LEFT, padx=5)
         
         reset_btn = ttk.Button(button_frame, text="🔄 Reset", command=self.reset_values)
         reset_btn.pack(side=tk.LEFT, padx=5)
         
         # --- PREVIEW SECTION ---
         preview_frame = ttk.LabelFrame(main_frame, text="📝 G-Code Preview", padding="10")
-        preview_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        preview_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         
         # Scrollbar for preview
         scrollbar = ttk.Scrollbar(preview_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.preview_text = tk.Text(preview_frame, height=12, width=85, 
+        self.preview_text = tk.Text(preview_frame, height=10, width=85, 
                                      yscrollcommand=scrollbar.set, font=("Courier", 8))
         self.preview_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.preview_text.yview)
@@ -124,7 +166,82 @@ class AxisAthleteApp:
         root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         
+        # Track safety confirmation
+        self.safety_confirmed = False
+        self.filament_installed = None
+        
         # Initial calculation
+        self.update_calculations()
+    
+    def check_filament_status(self):
+        """Check user input for filament status - must type yes or no"""
+        user_input = self.filament_var.get().strip().lower()
+        
+        if user_input == "yes":
+            self.filament_yes()
+        elif user_input == "no":
+            self.filament_no()
+        else:
+            # Clear status if input is neither yes nor no
+            self.safety_confirmed = False
+            self.filament_installed = None
+            self.status_label.config(text="Status: Awaiting confirmation (type 'yes' or 'no')...", 
+                                    foreground="orange")
+            self.feedrate_entry.config(state=tk.DISABLED)
+            self.feedrate_var.set(100.0)
+            self.feedrate_status.config(
+                text="🔒 Disabled (awaiting safety confirmation)", 
+                foreground="red"
+            )
+            self.generate_btn.config(state=tk.DISABLED)
+    
+    def filament_yes(self):
+        """User confirms filament is installed"""
+        self.filament_installed = True
+        self.safety_confirmed = True
+        
+        # Disable feed rate
+        self.feedrate_entry.config(state=tk.DISABLED)
+        self.feedrate_var.set(0.0)
+        self.feedrate_status.config(
+            text="🔒 DISABLED - Filament detected! Remove filament before running.",
+            foreground="red"
+        )
+        
+        # Keep generate button disabled (with filament)
+        self.generate_btn.config(state=tk.DISABLED)
+        
+        # Update status
+        self.status_label.config(
+            text="⚠️ Status: Filament detected. Feed rate DISABLED for protection.\n"
+                 "Recommendation: Remove filament and store in airtight container.",
+            foreground="red"
+        )
+        
+        self.update_calculations()
+    
+    def filament_no(self):
+        """User confirms filament is NOT installed"""
+        self.filament_installed = False
+        self.safety_confirmed = True
+        
+        # Enable feed rate
+        self.feedrate_entry.config(state=tk.NORMAL)
+        self.feedrate_var.set(100.0)
+        self.feedrate_status.config(
+            text="✅ Enabled - Safe to operate",
+            foreground="green"
+        )
+        
+        # Enable generate button
+        self.generate_btn.config(state=tk.NORMAL)
+        
+        # Update status
+        self.status_label.config(
+            text="✅ Status: Filament removed. Feed rate ENABLED. Safe to proceed.",
+            foreground="green"
+        )
+        
         self.update_calculations()
     
     def update_calculations(self):
@@ -169,6 +286,27 @@ class AxisAthleteApp:
     
     def generate_gcode(self):
         """Generate G-Code based on user parameters"""
+        # Check if safety confirmation is done
+        if not self.safety_confirmed:
+            messagebox.showerror("Safety Check Required", 
+                               "Please confirm filament status before generating G-Code.\n"
+                               "Type 'yes' or 'no' in the filament status field.")
+            return
+        
+        # If filament installed, prevent generation
+        if self.filament_installed:
+            messagebox.showerror(
+                "⚠️ FILAMENT DETECTED - GENERATION BLOCKED",
+                "Filament is installed in your printer!\n\n"
+                "Running this exercise with filament will:\n"
+                "  • Damage the nozzle and hotend\n"
+                "  • Extrude unwanted material\n"
+                "  • Potentially break your printer\n\n"
+                "❌ Generation DISABLED for protection.\n\n"
+                "Please remove filament and change your answer to 'no'."
+            )
+            return
+        
         try:
             length = self.length_var.get()
             width = self.width_var.get()
@@ -179,7 +317,7 @@ class AxisAthleteApp:
             
             # Validate inputs
             if length <= 0 or width <= 0 or height <= 0 or cycles <= 0 or feedrate <= 0:
-                messagebox.showerror("Input Error", "All values must be positive numbers")
+                messagebox.showerror("Input Error", "All dimension and cycle values must be positive numbers")
                 return
             
             # Generate G-Code
@@ -228,6 +366,11 @@ class AxisAthleteApp:
         gcode.append(";   - Mechanical stress testing")
         gcode.append(";   - Firmware stability verification")
         gcode.append(";   - Calibration & tuning")
+        gcode.append("; ")
+        gcode.append("; ⚠️ SAFETY NOTES:")
+        gcode.append(";   - FILAMENT MUST BE REMOVED before running")
+        gcode.append(";   - Store filament in airtight container")
+        gcode.append(";   - Use desiccant to prevent moisture absorption")
         gcode.append("; ========================================")
         gcode.append("")
         
@@ -301,7 +444,17 @@ class AxisAthleteApp:
         self.cycles_var.set(9)
         self.feedrate_var.set(100.0)
         self.zhop_var.set(2.0)
+        self.filament_var.set("")
         self.preview_text.delete(1.0, tk.END)
+        
+        # Reset safety confirmation
+        self.safety_confirmed = False
+        self.filament_installed = None
+        self.status_label.config(text="Status: Awaiting confirmation...", foreground="orange")
+        self.feedrate_entry.config(state=tk.DISABLED)
+        self.feedrate_status.config(text="🔒 Disabled (awaiting safety confirmation)", foreground="red")
+        self.generate_btn.config(state=tk.DISABLED)
+        
         self.update_calculations()
 
 def main():
