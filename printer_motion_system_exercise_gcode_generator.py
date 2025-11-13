@@ -4,11 +4,11 @@ import math
 import os
 from datetime import timedelta
 
-class GCodeGeneratorApp:
+class AxisAthleteApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("G-Code Generator")
-        self.root.geometry("600x750")
+        self.root.title("AxisAthlete - 3D Printer Motion System Exercise Generator")
+        self.root.geometry("700x850")
         self.root.resizable(False, False)
         
         # Configure style
@@ -19,13 +19,20 @@ class GCodeGeneratorApp:
         main_frame = ttk.Frame(root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Title
-        title_label = ttk.Label(main_frame, text="G-Code Motion System Generator", 
-                               font=("Arial", 14, "bold"))
-        title_label.grid(row=0, column=0, columnspan=3, pady=10)
+        # Title with branding
+        title_frame = ttk.Frame(main_frame)
+        title_frame.grid(row=0, column=0, columnspan=3, pady=10)
+        
+        title_label = ttk.Label(title_frame, text="⚙️ AxisAthlete", 
+                               font=("Arial", 18, "bold"))
+        title_label.pack()
+        
+        subtitle_label = ttk.Label(title_frame, text="3D Printer Motion System Exercise Generator", 
+                                  font=("Arial", 10, "italic"))
+        subtitle_label.pack()
         
         # --- INPUT SECTION ---
-        input_frame = ttk.LabelFrame(main_frame, text="Input Parameters", padding="10")
+        input_frame = ttk.LabelFrame(main_frame, text="📊 Input Parameters", padding="10")
         input_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Print Length
@@ -50,8 +57,8 @@ class GCodeGeneratorApp:
         self.height_entry.bind('<KeyRelease>', lambda e: self.update_calculations())
         
         # Number of Cycles
-        ttk.Label(input_frame, text="Number of Cycles:").grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.cycles_var = tk.IntVar(value=1)
+        ttk.Label(input_frame, text="Number of Exercise Cycles:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.cycles_var = tk.IntVar(value=9)
         self.cycles_entry = ttk.Entry(input_frame, textvariable=self.cycles_var, width=15)
         self.cycles_entry.grid(row=3, column=1, sticky=tk.W, padx=5)
         self.cycles_entry.bind('<KeyRelease>', lambda e: self.update_calculations())
@@ -71,43 +78,43 @@ class GCodeGeneratorApp:
         self.zhop_entry.bind('<KeyRelease>', lambda e: self.update_calculations())
         
         # --- CALCULATIONS SECTION ---
-        calc_frame = ttk.LabelFrame(main_frame, text="Calculated Values", padding="10")
+        calc_frame = ttk.LabelFrame(main_frame, text="📈 Calculated Values", padding="10")
         calc_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         # Total Distance
         ttk.Label(calc_frame, text="Total Distance:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.distance_label = ttk.Label(calc_frame, text="0.00 mm", font=("Arial", 10, "bold"))
+        self.distance_label = ttk.Label(calc_frame, text="0.00 mm", font=("Arial", 11, "bold"), foreground="blue")
         self.distance_label.grid(row=0, column=1, sticky=tk.W, padx=5)
         
         # Estimated Time
         ttk.Label(calc_frame, text="Estimated Duration:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.time_label = ttk.Label(calc_frame, text="00:00:00", font=("Arial", 10, "bold"), foreground="green")
+        self.time_label = ttk.Label(calc_frame, text="00:00:00", font=("Arial", 11, "bold"), foreground="green")
         self.time_label.grid(row=1, column=1, sticky=tk.W, padx=5)
         
         # Line Count
         ttk.Label(calc_frame, text="Estimated G-Code Lines:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.lines_label = ttk.Label(calc_frame, text="0", font=("Arial", 10, "bold"))
+        self.lines_label = ttk.Label(calc_frame, text="0", font=("Arial", 11, "bold"), foreground="darkblue")
         self.lines_label.grid(row=2, column=1, sticky=tk.W, padx=5)
         
         # --- BUTTON SECTION ---
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
         
-        generate_btn = ttk.Button(button_frame, text="Generate G-Code", command=self.generate_gcode)
+        generate_btn = ttk.Button(button_frame, text="🚀 Generate Exercise", command=self.generate_gcode)
         generate_btn.pack(side=tk.LEFT, padx=5)
         
-        reset_btn = ttk.Button(button_frame, text="Reset", command=self.reset_values)
+        reset_btn = ttk.Button(button_frame, text="🔄 Reset", command=self.reset_values)
         reset_btn.pack(side=tk.LEFT, padx=5)
         
         # --- PREVIEW SECTION ---
-        preview_frame = ttk.LabelFrame(main_frame, text="G-Code Preview", padding="10")
+        preview_frame = ttk.LabelFrame(main_frame, text="📝 G-Code Preview", padding="10")
         preview_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         
         # Scrollbar for preview
         scrollbar = ttk.Scrollbar(preview_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.preview_text = tk.Text(preview_frame, height=10, width=70, 
+        self.preview_text = tk.Text(preview_frame, height=12, width=85, 
                                      yscrollcommand=scrollbar.set, font=("Courier", 8))
         self.preview_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.preview_text.yview)
@@ -133,11 +140,14 @@ class GCodeGeneratorApp:
             if length <= 0 or width <= 0 or height <= 0 or cycles <= 0 or feedrate <= 0:
                 return
             
-            # Calculate total distance (rectangular path per cycle)
+            # Calculate total distance (rectangular path per cycle + Z movements)
+            # X-axis: 2 passes (back and forth)
+            # Y-axis: 2 passes (back and forth)
+            # Z-axis: up and down movements
             distance_per_cycle = (2 * length) + (2 * width) + (2 * height)
             total_distance = distance_per_cycle * cycles
             
-            # Calculate time
+            # Calculate time (in minutes, then convert to seconds)
             time_minutes = total_distance / feedrate
             time_seconds = time_minutes * 60
             
@@ -145,11 +155,12 @@ class GCodeGeneratorApp:
             minutes = int((time_seconds % 3600) // 60)
             seconds = int(time_seconds % 60)
             
-            # Calculate estimated lines (rough estimate: ~5 commands per cm of travel)
-            estimated_lines = int((total_distance / 10) * 5) + 50  # +50 for header/footer
+            # Calculate estimated lines (4 corners per cycle + header/footer)
+            lines_per_cycle = 5  # 4 corners + Z-hop
+            estimated_lines = (lines_per_cycle * cycles) + 15  # +15 for header/footer
             
             # Update labels
-            self.distance_label.config(text=f"{total_distance:.2f} mm")
+            self.distance_label.config(text=f"{total_distance:.2f} mm ({total_distance/1000:.2f} m)")
             self.time_label.config(text=f"{hours:02d}:{minutes:02d}:{seconds:02d}")
             self.lines_label.config(text=str(estimated_lines))
             
@@ -176,9 +187,9 @@ class GCodeGeneratorApp:
             
             # Display preview
             self.preview_text.delete(1.0, tk.END)
-            preview_lines = gcode.split('\n')[:20]
+            preview_lines = gcode.split('\n')[:25]
             self.preview_text.insert(tk.END, '\n'.join(preview_lines))
-            self.preview_text.insert(tk.END, f"\n... ({len(gcode.split(chr(10)))} total lines)")
+            self.preview_text.insert(tk.END, f"\n\n... ({len(gcode.split(chr(10)))} total lines)")
             
             # Save file
             file_path = filedialog.asksaveasfilename(
@@ -190,22 +201,35 @@ class GCodeGeneratorApp:
                 with open(file_path, 'w') as f:
                     f.write(gcode)
                 
-                messagebox.showinfo("Success", f"G-Code file generated successfully!\nSaved to: {file_path}")
+                messagebox.showinfo("✅ Success", 
+                                  f"Exercise G-Code generated successfully!\n\n"
+                                  f"File: {os.path.basename(file_path)}\n"
+                                  f"Location: {os.path.dirname(file_path)}")
         
         except ValueError:
             messagebox.showerror("Input Error", "Please enter valid numbers for all fields")
     
     def create_gcode(self, length, width, height, cycles, feedrate, zhop):
-        """Create G-Code string"""
+        """Create G-Code string for motion system exercise"""
         gcode = []
         
         # Header
-        gcode.append("; G-Code Motion System")
-        gcode.append(f"; Generated by G-Code Generator")
-        gcode.append(f"; Print Dimensions: {length}mm x {width}mm x {height}mm")
-        gcode.append(f"; Cycles: {cycles}")
+        gcode.append("; ========================================")
+        gcode.append("; AxisAthlete - Motion System Exercise")
+        gcode.append("; 3D Printer Firmware Testing & Calibration")
+        gcode.append("; ========================================")
+        gcode.append(f"; Build Dimensions: {length}mm (X) x {width}mm (Y) x {height}mm (Z)")
+        gcode.append(f"; Exercise Cycles: {cycles}")
         gcode.append(f"; Feed Rate: {feedrate} mm/min")
+        gcode.append(f"; Z-Hop Distance: {zhop} mm")
         gcode.append("; ")
+        gcode.append("; Purpose: Extended motion testing for:")
+        gcode.append(";   - Stepper motor endurance")
+        gcode.append(";   - Mechanical stress testing")
+        gcode.append(";   - Firmware stability verification")
+        gcode.append(";   - Calibration & tuning")
+        gcode.append("; ========================================")
+        gcode.append("")
         
         # Initialize
         gcode.append("G90 ; Absolute positioning")
@@ -222,31 +246,48 @@ class GCodeGeneratorApp:
         gcode.append("")
         
         # Cycles
-        for cycle in range(cycles):
-            gcode.append(f"; === CYCLE {cycle + 1} ===")
+        for cycle in range(1, cycles + 1):
+            gcode.append(f"; --- Exercise Cycle {cycle} of {cycles} ---")
+            gcode.append(f"M117 CYCLE {cycle} OF {cycles}")
             
-            # Define corners
-            corners = [
-                (current_x + length, current_y, current_z),
-                (current_x + length, current_y + width, current_z),
-                (current_x, current_y + width, current_z),
-                (current_x, current_y, current_z),
-            ]
+            # Z-Axis Exercise
+            gcode.append("; Z-Axis Movement")
+            z_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
+            for z in z_positions:
+                gcode.append(f"G0 Z{z}")
             
-            # Move through rectangle
-            for i, (x, y, z) in enumerate(corners):
-                gcode.append(f"G1 X{x} Y{y} Z{z} ; Corner {i+1}")
+            # X-Axis Exercise
+            gcode.append("; X-Axis Movement")
+            x_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
+            for x in x_positions:
+                gcode.append(f"G0 X{x}")
             
-            # Z-Hop at end of cycle
-            if cycle < cycles - 1:
-                gcode.append(f"G0 Z{current_z + zhop} ; Z-Hop")
-                gcode.append("")
+            # Y-Axis Exercise
+            gcode.append("; Y-Axis Movement")
+            y_positions = [10, 55, 110, 165, 210, 165, 110, 55, 10]
+            for y in y_positions:
+                gcode.append(f"G0 Y{y}")
+            
+            # Diagonal Exercise (XY plane)
+            gcode.append("; Diagonal Movement (XY)")
+            gcode.append("G0 X210 Y210")
+            gcode.append("G0 X10 Y10")
+            gcode.append("G0 X210 Y10")
+            gcode.append("G0 X10 Y210")
+            gcode.append("G0 X10 Y10")
+            
+            # Return to start position
+            gcode.append("G0 X10 Y10 Z10")
+            gcode.append("")
         
-        # Return home
-        gcode.append("")
-        gcode.append("G0 Z{:.1f} ; Raise Z".format(current_z + zhop))
-        gcode.append("G28 ; Return home")
-        gcode.append("M84 ; Disable motors")
+        # Finalization
+        gcode.append("; ========================================")
+        gcode.append("; Exercise Complete - Return to Home")
+        gcode.append("; ========================================")
+        gcode.append("G0 Z20 ; Raise Z for safety")
+        gcode.append("G28 ; Return to home position")
+        gcode.append("M84 ; Disable stepper motors (motors relax)")
+        gcode.append("M117 AxisAthlete Exercise Complete!")
         gcode.append("")
         gcode.append("; End of G-Code")
         
@@ -254,10 +295,10 @@ class GCodeGeneratorApp:
     
     def reset_values(self):
         """Reset all values to defaults"""
-        self.length_var.set(100.0)
-        self.width_var.set(100.0)
-        self.height_var.set(50.0)
-        self.cycles_var.set(1)
+        self.length_var.set(220.0)
+        self.width_var.set(220.0)
+        self.height_var.set(220.0)
+        self.cycles_var.set(9)
         self.feedrate_var.set(100.0)
         self.zhop_var.set(2.0)
         self.preview_text.delete(1.0, tk.END)
@@ -265,7 +306,7 @@ class GCodeGeneratorApp:
 
 def main():
     root = tk.Tk()
-    app = GCodeGeneratorApp(root)
+    app = AxisAthleteApp(root)
     root.mainloop()
 
 if __name__ == "__main__":
