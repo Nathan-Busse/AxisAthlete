@@ -8,7 +8,7 @@ class AxisAthleteApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AxisAthlete - 3D Printer Motion System Exercise Generator")
-        self.root.geometry("750x1050")
+        self.root.geometry("800x1150")
         self.root.resizable(False, False)
         
         # Configure style
@@ -36,7 +36,7 @@ class AxisAthleteApp:
         firmware_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
         ttk.Label(firmware_frame, text="Select your printer's firmware:",
-                 font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=5)
+                 font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=5)
         
         self.firmware_var = tk.StringVar(value="")
         
@@ -46,10 +46,15 @@ class AxisAthleteApp:
             ttk.Radiobutton(firmware_frame, text=firmware, variable=self.firmware_var, 
                            value=firmware, command=self.on_firmware_changed).grid(row=1, column=i, sticky=tk.W, padx=10, pady=5)
         
+        # Help button for firmware identification
+        help_btn = ttk.Button(firmware_frame, text="❓ How to identify my firmware", 
+                             command=self.show_firmware_help)
+        help_btn.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
         # Firmware info label
         self.firmware_info = ttk.Label(firmware_frame, text="ℹ️ Select a firmware to generate compatible G-Code",
                                       font=("Arial", 8, "italic"), foreground="darkblue")
-        self.firmware_info.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        self.firmware_info.grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=5)
         
         # --- SAFETY CHECK SECTION ---
         safety_frame = ttk.LabelFrame(main_frame, text="⚠️ SAFETY CHECK - FILAMENT STATUS", padding="10")
@@ -193,6 +198,111 @@ class AxisAthleteApp:
         # Initial calculation
         self.update_calculations()
     
+    def show_firmware_help(self):
+        """Show detailed firmware identification guide"""
+        firmware_help = """
+🖥️ HOW TO IDENTIFY YOUR PRINTER'S FIRMWARE
+============================================
+
+MARLIN 1.x - Classic Firmware
+────────────────────────────
+Features:
+  • Older firmware version
+  • Most popular until ~2018
+  • Used on Prusa i3, Original Ender 3, etc.
+
+How to check:
+  1. Send M115 command via serial console
+  2. Look for version output (e.g., "1.1.8")
+  3. Check in Configuration.h file (FIRMWARE_URL)
+  4. Commonly found on RepRap, ANET, Monoprice printers
+
+Characteristics:
+  • Simple command structure
+  • Uses M18 E to disable extruder
+  • Basic motion commands
+
+
+MARLIN 2.x - Modern Firmware
+────────────────────────────
+Features:
+  • Modern enhanced version (2.0+)
+  • More features and reliability
+  • Used on newer Ender 3 models, CR-10, etc.
+
+How to check:
+  1. Send M115 command via serial console
+  2. Look for version output (e.g., "2.0.7" or "2.1.0")
+  3. Check Marlin/Version.h file
+  4. Look for CONFIGURATION_VERSION: 020000+
+
+Characteristics:
+  • Enhanced safety features
+  • Better calibration tools
+  • Improved stepper control
+  • Used on most modern printers
+
+
+KLIPPER - High-Performance Firmware
+────────────────────────────────────
+Features:
+  • Runs on separate host computer (Pi, etc.)
+  • Lower latency, faster printing
+  • Growing in popularity
+
+How to check:
+  1. Check if printer connected to Raspberry Pi/Linux
+  2. Look for Mainsail, Fluidd, or Octoprint interface
+  3. Klipper uses .gcode files with special syntax
+  4. Uses SET_STEPPER_ENABLE commands
+
+Characteristics:
+  • Uses macro system
+  • Different command structure
+  • Faster processing
+  • Used on custom builds, Voron, Artillery, etc.
+
+
+QUICK IDENTIFICATION FLOWCHART
+───────────────────────────────
+1. Does printer have web interface (Mainsail/Fluidd)?
+   → YES: Probably KLIPPER
+   → NO: Go to step 2
+
+2. Send M115 command via serial
+   → Shows "1.x.x": MARLIN 1.x
+   → Shows "2.x.x": MARLIN 2.x
+   → No response: Could be KLIPPER
+
+3. Check printer documentation
+   → Look for firmware section in manual
+
+
+STILL UNSURE?
+──────────────
+• Check your printer's manual
+• Search "[Your Printer Model] + firmware"
+• Visit community forums (Reddit: r/3Dprinting)
+• Ask on printer manufacturer website
+"""
+        
+        # Create help window
+        help_window = tk.Toplevel(self.root)
+        help_window.title("Firmware Identification Guide")
+        help_window.geometry("700x700")
+        
+        # Create text widget with scrollbar
+        scrollbar = ttk.Scrollbar(help_window)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_widget = tk.Text(help_window, yscrollcommand=scrollbar.set, 
+                             font=("Courier", 9), wrap=tk.WORD, padx=10, pady=10)
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert(1.0, firmware_help)
+        text_widget.config(state=tk.DISABLED)
+    
     def on_firmware_changed(self):
         """Handle firmware selection change"""
         firmware = self.firmware_var.get()
@@ -204,6 +314,7 @@ class AxisAthleteApp:
         }
         
         self.firmware_info.config(text=firmware_info_map.get(firmware, ""))
+        self.update_generate_btn_state()
     
     def check_filament_status(self):
         """Check user input for filament status - must type yes or no"""
