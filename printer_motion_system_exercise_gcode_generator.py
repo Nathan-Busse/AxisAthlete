@@ -9,7 +9,7 @@ class AxisAthleteApp:
         self.root = root
         self.root.title("AxisAthlete - 3D Printer Motion System Exercise Generator")
         self.root.geometry("800x1150")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
         
         # Configure style
         style = ttk.Style()
