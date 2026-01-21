@@ -45,7 +45,7 @@ class AxisAthleteApp:
             ttk.Radiobutton(firmware_frame, text=firmware, variable=self.firmware_var, 
                            value=firmware, command=self.on_firmware_changed).grid(row=1, column=i, sticky=tk.W, padx=10, pady=5)
         
-        # HELP BUTTON (Restored)
+        # HELP BUTTON
         help_btn = ttk.Button(firmware_frame, text="❓ How to identify my firmware", 
                              command=self.show_firmware_help)
         help_btn.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
@@ -54,7 +54,7 @@ class AxisAthleteApp:
                                       font=("Arial", 8, "italic"), foreground="darkblue")
         self.firmware_info.grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=5)
         
-        # --- SAFETY CHECK SECTION (Restored) ---
+        # --- SAFETY CHECK SECTION ---
         safety_frame = ttk.LabelFrame(main_frame, text="⚠️ SAFETY CHECK - FILAMENT STATUS", padding="10")
         safety_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
         
@@ -92,13 +92,13 @@ class AxisAthleteApp:
             ent.grid(row=i, column=1, sticky=tk.W, padx=5, pady=2)
             ent.bind('<KeyRelease>', lambda e: self.update_calculations())
 
-        # --- SPEED PROFILE SECTION (Restored + New Fields) ---
-        speed_frame = ttk.LabelFrame(main_frame, text="⚡ Speed Profile (mm/min)", padding="10")
+        # --- SPEED PROFILE SECTION (Updated to mm/s) ---
+        speed_frame = ttk.LabelFrame(main_frame, text="⚡ Speed Profile (mm/s)", padding="10")
         speed_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
 
-        self.print_speed_var = tk.DoubleVar(value=3000.0)
-        self.travel_speed_var = tk.DoubleVar(value=6000.0)
-        self.retraction_speed_var = tk.DoubleVar(value=1800.0)
+        self.print_speed_var = tk.DoubleVar(value=50.0)
+        self.travel_speed_var = tk.DoubleVar(value=100.0)
+        self.retraction_speed_var = tk.DoubleVar(value=30.0)
 
         speeds = [
             ("Exercise (Print) Speed:", self.print_speed_var),
@@ -135,16 +135,13 @@ class AxisAthleteApp:
         
         ttk.Button(button_frame, text="🔄 Reset Values", command=self.reset_values).pack(side=tk.LEFT, padx=5)
 
-        # Preview area
         self.preview_text = tk.Text(main_frame, height=12, width=90, font=("Courier", 8))
         self.preview_text.grid(row=7, column=0, columnspan=3, pady=10)
 
-        # Internals
         self.safety_confirmed = False
         self.filament_installed = None
 
     def show_firmware_help(self):
-        """Show detailed firmware identification guide - FULL TEXT RESTORED"""
         firmware_help = """
 🖥️ HOW TO IDENTIFY YOUR PRINTER'S FIRMWARE
 ============================================
@@ -191,7 +188,6 @@ How to check:
         text_widget.config(state=tk.DISABLED)
 
     def on_firmware_changed(self):
-        """Handle firmware selection change - FULL LOGIC RESTORED"""
         firmware = self.firmware_var.get()
         firmware_info_map = {
             "Marlin 1.x": "✅ Marlin 1.x selected - Classic firmware syntax",
@@ -202,7 +198,6 @@ How to check:
         self.update_ui_state()
 
     def check_filament_status(self):
-        """Check user input for filament status - FULL LOGIC RESTORED"""
         user_input = self.filament_var.get().strip().lower()
         if user_input == "yes":
             self.filament_installed = True
@@ -236,34 +231,35 @@ How to check:
             length = self.length_var.get()
             width = self.width_var.get()
             cycles = self.cycles_var.get()
-            speed = self.print_speed_var.get()
+            speed_mms = self.print_speed_var.get() # User input in mm/s
             
-            # Distance logic: sweeps + diagonal per cycle
             dist_per_cycle = (length + width) * 2 + math.sqrt(length**2 + width**2)
             total_dist = dist_per_cycle * cycles
             
             self.distance_label.config(text=f"Total Travel Distance: {total_dist:,.2f} mm")
             
-            if speed > 0:
-                mins = total_dist / speed
-                self.time_label.config(text=f"Estimated Duration: {str(timedelta(minutes=mins)).split('.')[0]}")
+            if speed_mms > 0:
+                # Time = distance / speed
+                total_seconds = total_dist / speed_mms
+                self.time_label.config(text=f"Estimated Duration: {str(timedelta(seconds=total_seconds)).split('.')[0]}")
             else:
                 self.time_label.config(text="Estimated Duration: --:--:--")
         except:
             pass
 
     def generate_gcode(self):
-        """RESTORED: Main generation logic with Windows fix"""
-        # Explicitly fetch into local scope to prevent NameError on some OS environments
         firmware = self.firmware_var.get()
         zhop = self.zhop_var.get()
         l = self.length_var.get()
         w = self.width_var.get()
         h = self.height_var.get()
         c = self.cycles_var.get()
-        p_speed = self.print_speed_var.get()
-        t_speed = self.travel_speed_var.get()
-        r_speed = self.retraction_speed_var.get()
+        
+        # Convert user mm/s to mm/min for G-Code F parameter
+        p_speed = self.print_speed_var.get() * 60
+        t_speed = self.travel_speed_var.get() * 60
+        r_speed = self.retraction_speed_var.get() * 60
+        
         fil_inst = self.filament_installed
 
         try:
@@ -299,8 +295,8 @@ How to check:
             g.append(f"; --- Cycle {i} ---")
             g.append(f"G0 X{length-10} F{p_speed} ; X Sweep")
             g.append(f"G0 Y{width-10} ; Y Sweep")
-            g.append("G0 X10")
-            g.append("G0 Y10")
+            g.append(f"G0 X10 ; Return X")
+            g.append(f"G0 Y10 ; Return Y")
             g.append(f"G0 X{length-10} Y{width-10} ; Diagonal Move")
             
             z_height = (height / cycles) * i
@@ -322,8 +318,8 @@ How to check:
             g.append(f"; --- Cycle {i} ---")
             g.append(f"G0 X{length-10} F{p_speed}")
             g.append(f"G0 Y{width-10}")
-            g.append("G0 X10")
-            g.append("G0 Y10")
+            g.append(f"G0 X10")
+            g.append(f"G0 Y10")
             g.append(f"G0 X{length-10} Y{width-10}")
             
             z_height = (height / cycles) * i
@@ -335,7 +331,6 @@ How to check:
         return "\n".join(g)
 
     def create_klipper_gcode(self, length, width, height, cycles, p_speed, t_speed, r_speed, zhop, filament_installed):
-        # Corrected: Klipper uses mm/min, ensuring no extra multiplier is added erroneously
         g = [f"; AxisAthlete - Klipper", "G90", "G28"]
         if filament_installed: g.append("SET_STEPPER_ENABLE STEPPER=extruder ENABLE=0")
         
@@ -346,8 +341,8 @@ How to check:
             g.append(f"; Cycle {i}")
             g.append(f"G0 X{length-10} F{p_speed}")
             g.append(f"G0 Y{width-10}")
-            g.append("G0 X10")
-            g.append("G0 Y10")
+            g.append(f"G0 X10")
+            g.append(f"G0 Y10")
             g.append(f"G0 X{length-10} Y{width-10}")
             
             z_height = (height / cycles) * i
@@ -358,20 +353,18 @@ How to check:
         return "\n".join(g)
 
     def reset_values(self):
-        """Reset all values to defaults - FULL LOGIC RESTORED"""
         self.length_var.set(220.0)
         self.width_var.set(220.0)
         self.height_var.set(220.0)
         self.cycles_var.set(9)
         self.zhop_var.set(2.0)
-        self.print_speed_var.set(3000.0)
-        self.travel_speed_var.set(6000.0)
-        self.retraction_speed_var.set(1800.0)
+        # Default speeds in mm/s
+        self.print_speed_var.set(50.0)
+        self.travel_speed_var.set(100.0)
+        self.retraction_speed_var.set(30.0)
         self.filament_var.set("")
         self.firmware_var.set("")
         self.preview_text.delete(1.0, tk.END)
-        
-        # Reset safety confirmation
         self.safety_confirmed = False
         self.filament_installed = None
         self.status_label.config(text="Status: Awaiting confirmation...", foreground="orange")
