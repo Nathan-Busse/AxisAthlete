@@ -1,4 +1,4 @@
-# ⚙️ AxisAthlete
+6# ⚙️ AxisAthlete
 
 ## 3D Printer Motion System Exercise Generator
 
@@ -26,10 +26,9 @@ AxisAthlete provides extended motion testing for 3D printers to:
 - **Klipper** - High-performance firmware system with optimized motion planning
 
 ### 🛡️ Safety Features
-- **Filament Protection Mode**: Automatically disables extruder stepper when filament is detected
+- **Filament Protection Mode**: Automatically disables extruder stepper when filament is set as present by the user.
 - **Feed Rate Controls**: Automatically locks feed rate when filament is present to prevent unwanted extrusion
-- **Pre-flight Checks**: Confirms firmware selection and safety status before generation
-- **Visual Status Indicators**: Color-coded feedback for safety status (🟢 Safe, 🔴 Protected, 🟠 Awaiting)
+
 
 ### 📊 Real-Time Calculations
 - **Total Distance Calculation**: Computes total movement distance across all cycles
