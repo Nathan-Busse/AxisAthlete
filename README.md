@@ -1,4 +1,4 @@
-6# ⚙️ AxisAthlete
+# ⚙️ AxisAthlete
 
 ## 3D Printer Motion System Exercise Generator
 
@@ -53,12 +53,3 @@ AxisAthlete provides extended motion testing for 3D printers to:
 ### Prerequisites
 - Python 3.7 or higher
 - tkinter (usually included with Python)
-
-### Installation
-
-```bash
-# Clone or download the repository
-cd exercise_printer
-
-# Run the application
-python [printer_motion_system_exercise_gcode_generator.py](http://_vscodecontentref_/0)
